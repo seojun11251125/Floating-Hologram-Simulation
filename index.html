@@ -3,578 +3,378 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 플로팅 홀로그램 과학 시뮬레이션</title>
+    <title>중1 과학: 분자 운동과 열 시뮬레이션</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050505; color: white; font-family: 'Pretendard', sans-serif; }
-        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
-        
-        #ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 10; display: flex; justify-content: space-between; padding: 20px; box-sizing: border-box;
+        canvas {
+            touch-action: none; 
+            background-color: #0f172a;
         }
-
-        .panel {
-            background: rgba(15, 20, 30, 0.85);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(100, 150, 255, 0.2);
-            border-radius: 12px;
-            padding: 20px;
-            pointer-events: auto;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            max-height: 95vh;
-            overflow-y: auto;
-        }
-
-        /* 커스텀 슬라이더 스타일 */
-        input[type=range] {
-            -webkit-appearance: none; width: 100%; background: transparent; margin: 10px 0;
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; border: 1px solid rgba(0,0,0,0.5);
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%;
-            background: #4facfe; cursor: pointer; margin-top: -5px; box-shadow: 0 0 10px #4facfe;
-        }
-        
-        .btn {
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-            color: white; padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s;
-            text-align: center; flex: 1; margin: 0 4px;
-        }
-        .btn:hover { background: rgba(79, 172, 254, 0.3); border-color: #4facfe; }
-        .btn.active { background: rgba(79, 172, 254, 0.5); border-color: #4facfe; box-shadow: 0 0 10px rgba(79, 172, 254, 0.5); }
-        
-        .label-text { font-size: 0.85rem; color: #a0aec0; letter-spacing: 0.05em; margin-bottom: 2px; display: block; }
-        .value-text { font-weight: bold; color: #4facfe; float: right; }
-
-        .title-box { pointer-events: auto; align-self: flex-start; max-width: 350px; }
-        .controls-box { width: 320px; align-self: flex-start; }
-
-        /* 최적 시선 이펙트 배너 */
-        #sweetSpotBanner {
-            position: absolute; top: 30px; left: 50%; transform: translateX(-50%);
-            background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
-            color: #d11a2a; padding: 12px 30px; border-radius: 30px; font-weight: bold; font-size: 1.1rem;
-            box-shadow: 0 0 30px rgba(255, 150, 150, 0.8); z-index: 20;
-            opacity: 0; transition: opacity 0.5s ease-in-out, transform 0.5s ease-out; pointer-events: none;
-            text-align: center; border: 2px solid #fff;
-        }
-        #sweetSpotBanner.show { opacity: 1; transform: translateX(-50%) scale(1.05); }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
-
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
 </head>
-<body>
+<body class="bg-blue-50 text-slate-800 font-sans min-h-screen flex flex-col">
 
-    <div id="canvas-container"></div>
-    
-    <!-- 최적 시선 이펙트 UI -->
-    <div id="sweetSpotBanner">🌟 최적 시선 (Sweet Spot) 일치! 🌟<br><span style="font-size:0.8rem; color:#555;">홀로그램 입체감이 가장 극대화되는 각도입니다!</span></div>
-
-    <div id="ui-layer">
-        <div class="panel title-box">
-            <h1 class="text-xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
-                4면체 피라미드 홀로그램 시뮬레이션
+    <header class="bg-white shadow-md border-b border-blue-200 px-6 py-4">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-bold text-blue-800 flex items-center gap-2">
+                <span class="text-yellow-500">⚛️</span> 눈에 보이지 않는 분자의 운동
             </h1>
-            <p class="text-sm text-gray-300 mb-4 leading-relaxed">
-                바닥의 디스플레이에서 출력되는 4개의 영상이 **역사각뿔대(Inverted Pyramid)** 형태의 4면 반사판에 각각 부딪혀, 피라미드 중앙에 하나의 완벽한 3D 입체 영상이 떠 있는 것처럼 보이게 만듭니다.
-            </p>
-            <div class="bg-black/40 p-3 rounded text-xs text-gray-400 border border-gray-700">
-                <span class="text-yellow-400 font-bold">마우스 드래그:</span> 화면 회전 및 시선 이동<br>
-                <span class="text-yellow-400 font-bold">노란색 선:</span> 빛이 반사되어 눈으로 들어오는 실제 경로<br>
-                <span class="text-pink-400 font-bold">도전 과제:</span> 피라미드 각도와 눈 높이를 조절하여, 반사된 노란색 빛(레이저)이 눈동자를 정확히 관통하게 맞춰보세요!
+            <div class="text-sm font-medium text-slate-500 hidden sm:block bg-blue-100 px-3 py-1 rounded-full">
+                중학교 1학년 과학: 열과 우리 삶
             </div>
         </div>
+    </header>
 
-        <div class="panel controls-box flex flex-col gap-5">
-            <div>
-                <span class="label-text">피라미드 반사판 각도 <span id="valAngle" class="value-text">45°</span></span>
-                <input type="range" id="sliderAngle" min="20" max="70" value="45" step="1">
-            </div>
-
-            <div>
-                <span class="label-text">관찰자 눈 높이 (시선) <span id="valEyeHeight" class="value-text">0.5</span></span>
-                <input type="range" id="sliderEyeHeight" min="-4" max="6" value="0.5" step="0.1">
-            </div>
-
-            <div>
-                <span class="label-text">관찰자 눈 거리 (앞뒤) <span id="valEyeDist" class="value-text">6.0</span></span>
-                <input type="range" id="sliderEyeDist" min="2" max="12" value="6.0" step="0.1">
-            </div>
-
-            <div>
-                <span class="label-text mb-2">카메라 시선 (Viewpoint)</span>
-                <div class="flex justify-between">
-                    <button class="btn" id="btnViewFront">정면 (관찰자)</button>
-                    <button class="btn" id="btnViewTop">위 (디스플레이)</button>
-                    <button class="btn" id="btnViewSide">측면 (원리)</button>
-                </div>
-            </div>
-
-            <div>
-                <span class="label-text">홀로그램 밝기 <span id="valProj" class="value-text">100%</span></span>
-                <input type="range" id="sliderProj" min="0" max="100" value="100">
-            </div>
-
-            <div>
-                <span class="label-text mb-2">캐릭터 모델 선택</span>
-                <div class="flex justify-between mb-2">
-                    <button class="btn active" id="btnChar0">로봇</button>
-                    <button class="btn" id="btnChar1">토성</button>
-                    <button class="btn" id="btnChar2">마법 별</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-        // --- 기본 씬 설정 ---
-        const container = document.getElementById('canvas-container');
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050508);
-
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(0, 0.5, 9); // 초기 위치를 정면 관찰자 시점으로
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        container.appendChild(renderer.domElement);
-
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.target.set(0, 0, 0);
-
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
-        scene.add(ambientLight);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-        dirLight.position.set(5, 10, 5);
-        scene.add(dirLight);
-
-        // --- 환경 구축 ---
-        const setupGroup = new THREE.Group();
-        scene.add(setupGroup);
-
-        // 디스플레이 장치
-        const baseGeo = new THREE.BoxGeometry(7, 0.2, 7);
-        const baseMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
-        const base = new THREE.Mesh(baseGeo, baseMat);
-        base.position.y = -2.1;
-        setupGroup.add(base);
-
-        const screenGeo = new THREE.PlaneGeometry(6.6, 6.6);
-        const screenMat = new THREE.MeshBasicMaterial({ color: 0x001122 });
-        const screen = new THREE.Mesh(screenGeo, screenMat);
-        screen.rotation.x = -Math.PI / 2;
-        screen.position.y = -1.99;
-        setupGroup.add(screen);
-
-        // 역사각뿔대 (4면 피라미드 반사판) 변수
-        let pyramidMesh;
-        let pyramidEdges;
-        const glassMat = new THREE.MeshPhysicalMaterial({
-            color: 0xffffff, transparent: true, opacity: 0.15,
-            roughness: 0.05, metalness: 0.2, side: THREE.DoubleSide, depthWrite: false
-        });
-        const edgeMat = new THREE.LineBasicMaterial({ color: 0x4facfe, transparent: true, opacity: 0.3 });
-
-        // --- 캔버스에 직접 귀여운 캐릭터를 그리는 함수 (텍스처 생성) ---
-        const allGhostMats = [];
-
-        function createCharacterTexture(type) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 512;
-            canvas.height = 512;
-            const ctx = canvas.getContext('2d');
-            
-            // 공통: 그림자 효과로 빛나는 느낌(Glow) 추가
-            ctx.shadowBlur = 20;
-
-            if (type === 0) {
-                // 1. 귀여운 애니메이션 로봇 (청록/핑크/노랑)
-                ctx.shadowColor = '#00ffff'; ctx.fillStyle = '#00ffff';
-                // 머리 (둥근 사각형)
-                ctx.beginPath(); ctx.roundRect(100, 150, 312, 250, 40); ctx.fill();
-                // 귀
-                ctx.fillStyle = '#ff00aa'; ctx.shadowColor = '#ff00aa';
-                ctx.beginPath(); ctx.roundRect(40, 200, 60, 150, 20); ctx.fill();
-                ctx.beginPath(); ctx.roundRect(412, 200, 60, 150, 20); ctx.fill();
-                // 초롱초롱 눈
-                ctx.fillStyle = '#ffff00'; ctx.shadowColor = '#ffff00';
-                ctx.beginPath(); ctx.ellipse(200, 250, 40, 60, 0, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.ellipse(312, 250, 40, 60, 0, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 0;
-                ctx.beginPath(); ctx.arc(190, 230, 15, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(302, 230, 15, 0, Math.PI*2); ctx.fill();
-                // 웃는 입
-                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 12; ctx.lineCap = 'round';
-                ctx.beginPath(); ctx.arc(256, 320, 40, 0.2, Math.PI-0.2); ctx.stroke();
-                
-            } else if (type === 1) {
-                // 2. 토성 행성요정 (주황/연두)
-                ctx.shadowColor = '#ff8800'; ctx.fillStyle = '#ff8800';
-                ctx.beginPath(); ctx.arc(256, 256, 140, 0, Math.PI*2); ctx.fill();
-                // 행성 고리
-                ctx.shadowColor = '#88ff00'; ctx.strokeStyle = '#88ff00'; ctx.lineWidth = 40;
-                ctx.beginPath(); ctx.ellipse(256, 256, 240, 90, Math.PI/6, 0, Math.PI*2); ctx.stroke();
-                // 귀여운 얼굴 표정
-                ctx.shadowBlur = 0; ctx.fillStyle = '#000000';
-                ctx.beginPath(); ctx.ellipse(200, 240, 15, 25, 0, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.ellipse(312, 240, 15, 25, 0, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#ffffff';
-                ctx.beginPath(); ctx.arc(195, 230, 8, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(307, 230, 8, 0, Math.PI*2); ctx.fill();
-                // 볼터치
-                ctx.fillStyle = 'rgba(255, 100, 100, 0.6)';
-                ctx.beginPath(); ctx.arc(160, 270, 25, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(352, 270, 25, 0, Math.PI*2); ctx.fill();
-                
-            } else if (type === 2) {
-                // 3. 마법의 별 (노랑/핑크)
-                ctx.shadowColor = '#ffdd00'; ctx.fillStyle = '#ffdd00';
-                ctx.beginPath();
-                // 5각 별 그리기 수학 공식
-                for(let i=0; i<5; i++) {
-                    ctx.lineTo(256 + 220*Math.cos(Math.PI/2 + i*Math.PI*2/5), 256 - 220*Math.sin(Math.PI/2 + i*Math.PI*2/5));
-                    ctx.lineTo(256 + 90*Math.cos(Math.PI/2 + i*Math.PI*2/5 + Math.PI/5), 256 - 90*Math.sin(Math.PI/2 + i*Math.PI*2/5 + Math.PI/5));
-                }
-                ctx.closePath(); ctx.fill();
-                
-                // 애니메이션 눈망울과 입
-                ctx.shadowColor = '#ff55aa'; ctx.fillStyle = '#ff55aa';
-                ctx.beginPath(); ctx.ellipse(200, 270, 20, 40, 0, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.ellipse(312, 270, 20, 40, 0, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 0;
-                ctx.beginPath(); ctx.arc(195, 255, 10, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(307, 255, 10, 0, Math.PI*2); ctx.fill();
-                ctx.strokeStyle = '#ff55aa'; ctx.lineWidth = 10; ctx.lineCap = 'round';
-                ctx.beginPath(); ctx.arc(256, 320, 25, 0, Math.PI); ctx.stroke();
-            }
-            
-            const texture = new THREE.CanvasTexture(canvas);
-            texture.colorSpace = THREE.SRGBColorSpace;
-            return texture;
-        }
-
-        // 원본과 복제본 배열 (각 캐릭터당 4개 소스, 4개 고스트 필요)
-        const characterGroups = [];
-        let activeCharIndex = 0;
-
-        function createBaseModels() {
-            const models = [];
-            for (let i = 0; i < 3; i++) {
-                // 텍스처 생성
-                const tex = createCharacterTexture(i);
-                
-                // 바닥 사각판에 비춰질 원본 재질 (불투명, 양면)
-                const srcMat = new THREE.MeshStandardMaterial({
-                    map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.8,
-                    transparent: true, side: THREE.DoubleSide
-                });
-                
-                // 허공에 뜰 홀로그램 재질 (반투명, 발광, 덧셈 혼합)
-                const ghostMat = new THREE.MeshStandardMaterial({
-                    map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 1.5,
-                    transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, 
-                    depthWrite: false, side: THREE.DoubleSide
-                });
-                allGhostMats.push(ghostMat);
-
-                // 평면 사각판(PlaneGeometry) 하나에 그림을 맵핑
-                const group = new THREE.Group();
-                const plane = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 2.0), srcMat);
-                plane.position.y = 1.0; // 밑바닥부터 그림이 서있도록 높이 조정
-                plane.userData.ghostMat = ghostMat; // 나중에 고스트 만들 때 참조할 재질
-                group.add(plane);
-                
-                models.push(group);
-            }
-            return models;
-        }
-
-        const templates = createBaseModels();
-        const placementDist = 2.4; // 스크린 중앙에서 소스까지의 거리
-
-        templates.forEach((template, idx) => {
-            const charData = { sources: [], ghosts: [] };
-            
-            // 4면(앞, 뒤, 좌, 우)에 각각 배치
-            for(let i=0; i<4; i++) {
-                // 1. 소스 (바닥 스크린에 눕힘)
-                const source = template.clone();
-                // 기존의 단색 덮어쓰기 코드는 삭제 (이미 부품별로 다채로운 색상이 지정되어 있음)
-                
-                // 회전 및 위치 (각 소스가 중앙을 바라보도록 눕힘)
-                const angle = i * (Math.PI / 2);
-                source.position.set(Math.sin(angle) * placementDist, -1.9, Math.cos(angle) * placementDist);
-                source.rotation.set(-Math.PI / 2, 0, Math.PI - angle);
-                
-                scene.add(source);
-                charData.sources.push(source);
-
-                // 2. 고스트 (가상 허상 - 매트릭스로 덮어씌워질 예정)
-                const ghost = template.clone();
-                ghost.traverse(child => { 
-                    if(child.isMesh && child.userData.ghostMat) {
-                        child.material = child.userData.ghostMat; 
-                    }
-                });
-                ghost.matrixAutoUpdate = false;
-                scene.add(ghost);
-                charData.ghosts.push(ghost);
-
-                source.visible = (idx === 0);
-                ghost.visible = (idx === 0);
-            }
-            characterGroups.push(charData);
-        });
-
-
-        // --- 시선 및 광선 시각화 ---
-        const rayGroup = new THREE.Group();
-        scene.add(rayGroup);
+    <main class="flex-grow max-w-6xl mx-auto w-full p-4 md:p-6 flex flex-col lg:flex-row gap-6">
         
-        // 실제 빛 (노란색)
-        const rayGeo = new THREE.BufferGeometry();
-        const rayMat = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 2, transparent: true, opacity: 0.6 });
-        const rayLine = new THREE.Line(rayGeo, rayMat);
-        rayGroup.add(rayLine);
+        <!-- 왼쪽: 시뮬레이션 화면 -->
+        <div class="flex-grow flex flex-col bg-white p-4 rounded-3xl shadow-lg border-4 border-blue-200">
+            <div class="mb-2 flex justify-between items-end">
+                <p class="text-sm font-bold text-blue-600 italic">"분자는 뜨거울수록 더 빨리 움직여요!"</p>
+                <div id="statusInfo" class="text-xs font-mono bg-slate-100 px-2 py-1 rounded tracking-tighter">입자 수: <span id="currentCount">150</span>개</div>
+            </div>
+            <div class="relative w-full aspect-[3/2] bg-slate-900 rounded-2xl overflow-hidden shadow-inner border-2 border-slate-700">
+                <canvas id="simCanvas" class="absolute top-0 left-0 w-full h-full cursor-pointer"></canvas>
+            </div>
+            
+            <!-- 온도 인디케이터 -->
+            <div class="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div class="flex items-center justify-between text-sm font-bold mb-2">
+                    <span class="text-blue-500">❄️ 차가움 (느린 운동)</span>
+                    <span class="text-rose-500">🔥 뜨거움 (빠른 운동)</span>
+                </div>
+                <div class="w-full h-4 rounded-full shadow-inner border border-slate-300" style="background: linear-gradient(to right, #3b82f6, #06b6d4, #22c55e, #eab308, #ef4444);"></div>
+            </div>
+        </div>
 
-        // 파란색 가상 빛 경로 제거됨
+        <!-- 오른쪽: 조작 도구 -->
+        <aside class="w-full lg:w-80 flex-shrink-0 flex flex-col gap-4">
+            <div class="bg-white p-5 rounded-3xl shadow-md border-2 border-slate-100">
+                <button id="btnPlayPause" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-lg transition-all shadow-lg flex justify-center items-center gap-2">
+                    <span>▶ 실험 시작</span>
+                </button>
+                <div class="grid grid-cols-2 gap-2 mt-3">
+                    <button id="btnResetParticles" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors text-xs">
+                        입자 다시 놓기
+                    </button>
+                    <button id="btnClearWalls" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors text-xs">
+                        벽 모두 지우기
+                    </button>
+                </div>
+            </div>
 
-        // 물리적 '눈(관찰자)' 모델 객체 생성
-        const eyeGroup = new THREE.Group();
-        const eyeball = new THREE.Mesh(new THREE.SphereGeometry(0.3, 32, 32), new THREE.MeshBasicMaterial({color: 0xffffff}));
-        const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), new THREE.MeshBasicMaterial({color: 0x111111}));
-        pupil.position.z = 0.22;
-        pupil.scale.z = 0.2; // 눈동자를 약간 납작하게
-        eyeGroup.add(eyeball, pupil);
-        eyeGroup.position.set(0, 0.5, 6); // 초기 눈 위치
-        scene.add(eyeGroup);
+            <div class="bg-white p-5 rounded-3xl shadow-md border-2 border-slate-100">
+                <h2 class="text-sm font-black text-blue-500 uppercase tracking-tighter mb-4">설정 및 도구</h2>
+                <div class="grid grid-cols-2 gap-2 mb-4" id="toolSelector">
+                    <button data-tool="heat" class="tool-btn active-tool py-3 bg-rose-50 border-2 border-rose-400 text-rose-700 rounded-2xl font-bold text-sm flex flex-col items-center gap-1">
+                        <span class="text-xl">🔥</span> 가열하기
+                    </button>
+                    <button data-tool="cold" class="tool-btn py-3 bg-slate-50 border-2 border-transparent text-slate-600 rounded-2xl font-bold text-sm flex flex-col items-center gap-1 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200">
+                        <span class="text-xl">❄️</span> 식히기
+                    </button>
+                    <button data-tool="wall" class="tool-btn py-3 bg-slate-50 border-2 border-transparent text-slate-600 rounded-2xl font-bold text-sm flex flex-col items-center gap-1 hover:bg-slate-200">
+                        <span class="text-xl">🧱</span> 벽 세우기
+                    </button>
+                    <button data-tool="eraser" class="tool-btn py-3 bg-slate-50 border-2 border-transparent text-slate-600 rounded-2xl font-bold text-sm flex flex-col items-center gap-1 hover:bg-slate-200">
+                        <span class="text-xl">🧽</span> 지우개
+                    </button>
+                </div>
 
-        // --- 핵심 물리 및 매트릭스 계산 ---
-        let currentAngleDeg = 45;
-        const bottomBaseSize = 1.0; // 피라미드 밑면(작은 사각형)의 크기
+                <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200 mb-3">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-bold text-slate-600">브러시 크기</span>
+                        <span id="brushSizeVal" class="text-xs font-mono text-blue-600">40</span>
+                    </div>
+                    <input type="range" id="brushSlider" min="10" max="100" value="40" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                </div>
 
-        function getReflectionMatrix(pivot, normal) {
-            const transToOrigin = new THREE.Matrix4().makeTranslation(-pivot.x, -pivot.y, -pivot.z);
-            const reflect = new THREE.Matrix4().set(
-                1 - 2*normal.x*normal.x, - 2*normal.x*normal.y, - 2*normal.x*normal.z, 0,
-                - 2*normal.x*normal.y, 1 - 2*normal.y*normal.y, - 2*normal.y*normal.z, 0,
-                - 2*normal.x*normal.z, - 2*normal.y*normal.z, 1 - 2*normal.z*normal.z, 0,
-                0, 0, 0, 1
-            );
-            const transBack = new THREE.Matrix4().makeTranslation(pivot.x, pivot.y, pivot.z);
-            return transBack.multiply(reflect).multiply(transToOrigin);
+                <div class="p-3 bg-blue-50 rounded-2xl border border-blue-100">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-bold text-blue-800">입자 개수</span>
+                        <span id="particleCountVal" class="text-xs font-mono text-blue-600">150</span>
+                    </div>
+                    <input type="range" id="particleSlider" min="10" max="400" step="10" value="150" class="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        
+        let isRunning = false;
+        let animationId = null;
+
+        let numParticles = 150;
+        const PARTICLE_RADIUS = 6; 
+        const MAX_SPEED = 6.0;
+        const BASE_SPEED = 1.2;
+        let energyTransferRate = 0.08; 
+        
+        const GRID_COLS = 60; 
+        const GRID_ROWS = 40;
+        let cellWidth = 0;
+        let cellHeight = 0;
+        let walls = new Uint8Array(GRID_COLS * GRID_ROWS);
+        
+        // 배열 초기화 (undefined 에러 방지)
+        let px = new Float32Array(0);
+        let py = new Float32Array(0);
+        let vx = new Float32Array(0);
+        let vy = new Float32Array(0);
+
+        let currentTool = 'heat';
+        let brushRadius = 40;
+        let isDrawing = false;
+        let mouseX = 0, mouseY = 0;
+
+        const colorPalette = [];
+        for (let i = 0; i <= 100; i++) {
+            let r, g, b;
+            const ratio = i / 100;
+            if (ratio < 0.25) {
+                const t = ratio / 0.25; r = 59; g = 130 + Math.floor(100 * t); b = 246;
+            } else if (ratio < 0.5) {
+                const t = (ratio - 0.25) / 0.25; r = 59; g = 230; b = Math.floor(246 * (1 - t));
+            } else if (ratio < 0.75) {
+                const t = (ratio - 0.5) / 0.25; r = Math.floor(59 + 196 * t); g = 230; b = 0;
+            } else {
+                const t = (ratio - 0.75) / 0.25; r = 255; g = Math.floor(230 * (1 - t)); b = 0;
+            }
+            colorPalette.push(`rgb(${r},${g},${b})`);
         }
 
-        function updatePyramid() {
-            // 1. 역사각뿔대 지오메트리 재구성
-            if(pyramidMesh) { setupGroup.remove(pyramidMesh); setupGroup.remove(pyramidEdges); }
-            
-            const aRad = THREE.MathUtils.degToRad(currentAngleDeg);
-            const slantHeight = 4.0;
-            const height = slantHeight * Math.sin(aRad);
-            const horiz = slantHeight * Math.cos(aRad);
-            const topSize = bottomBaseSize + 2 * horiz;
-            
-            const geo = new THREE.CylinderGeometry((topSize/2)*Math.SQRT2, (bottomBaseSize/2)*Math.SQRT2, height, 4, 1, true);
-            geo.translate(0, height/2, 0); // 밑면을 Y=0에 맞춤
-            geo.rotateY(Math.PI / 4); // 4면을 X,Z 축에 정렬
-            
-            pyramidMesh = new THREE.Mesh(geo, glassMat);
-            pyramidMesh.position.y = -2; // 바닥 스크린 위치로 내림
-            setupGroup.add(pyramidMesh);
-            
-            pyramidEdges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat);
-            pyramidEdges.position.y = -2;
-            setupGroup.add(pyramidEdges);
+        function getColorFromSpeed(speed) {
+            let idx = Math.floor((speed / MAX_SPEED) * 100);
+            return colorPalette[Math.min(100, Math.max(0, idx))];
+        }
 
-            // 2. 4개의 면에 대한 반사 매트릭스 계산 및 고스트 위치 적용
-            const activeData = characterGroups[activeCharIndex];
-            const p = bottomBaseSize / 2; // 피벗(밑면 모서리) 위치
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            cellWidth = canvas.width / GRID_COLS;
+            cellHeight = canvas.height / GRID_ROWS;
+            render();
+        }
 
-            // 4면의 노말 벡터와 피벗 (앞, 우, 뒤, 좌 순서)
-            const faces = [
-                { pivot: new THREE.Vector3(0, -2, p), normal: new THREE.Vector3(0, Math.cos(aRad), -Math.sin(aRad)) },
-                { pivot: new THREE.Vector3(p, -2, 0), normal: new THREE.Vector3(-Math.sin(aRad), Math.cos(aRad), 0) },
-                { pivot: new THREE.Vector3(0, -2, -p), normal: new THREE.Vector3(0, Math.cos(aRad), Math.sin(aRad)) },
-                { pivot: new THREE.Vector3(-p, -2, 0), normal: new THREE.Vector3(Math.sin(aRad), Math.cos(aRad), 0) }
-            ];
+        function setupParticleArrays(count) {
+            numParticles = count;
+            const newPx = new Float32Array(numParticles);
+            const newPy = new Float32Array(numParticles);
+            const newVx = new Float32Array(numParticles);
+            const newVy = new Float32Array(numParticles);
 
-            for(let i=0; i<4; i++) {
-                const refMatrix = getReflectionMatrix(faces[i].pivot, faces[i].normal);
-                activeData.sources[i].updateMatrixWorld(true);
-                const ghostMat = new THREE.Matrix4().multiplyMatrices(refMatrix, activeData.sources[i].matrixWorld);
-                activeData.ghosts[i].matrix.copy(ghostMat);
+            for (let i = 0; i < numParticles; i++) {
+                let valid = false;
+                let attempts = 0;
+                while(!valid && attempts < 50) {
+                    newPx[i] = Math.random() * (canvas.width - 20) + 10;
+                    newPy[i] = Math.random() * (canvas.height - 20) + 10;
+                    const cx = Math.floor(newPx[i] / (cellWidth || 10));
+                    const cy = Math.floor(newPy[i] / (cellHeight || 10));
+                    if (cx >= 0 && cx < GRID_COLS && cy >= 0 && cy < GRID_ROWS && !walls[cy * GRID_COLS + cx]) valid = true;
+                    attempts++;
+                }
+                const angle = Math.random() * Math.PI * 2;
+                newVx[i] = Math.cos(angle) * BASE_SPEED;
+                newVy[i] = Math.sin(angle) * BASE_SPEED;
             }
 
-            // 3. 빔(광선) 시각화 및 시선(Eye) 처리 (물리적 반사 광선 추적)
-            const srcPt = activeData.sources[0].position.clone();
+            // 모든 속성 할당 후 전역 변수 교체
+            px = newPx; py = newPy; vx = newVx; vy = newVy;
             
-            // 앞면(Front Face)의 노말 벡터 및 피벗 가져오기
-            const frontNormal = faces[0].normal;
-            const frontPivot = faces[0].pivot;
-
-            // 상향 광선(I)과 유리판의 실제 교점(hitPt) 수학적 계산
-            const I = new THREE.Vector3(0, 1, 0); // 바닥에서 수직 위로 향하는 빛
-            const srcToPivot = new THREE.Vector3().subVectors(frontPivot, srcPt);
-            const t = srcToPivot.dot(frontNormal) / I.dot(frontNormal);
-            const hitPt = new THREE.Vector3().copy(srcPt).add(I.clone().multiplyScalar(t));
-
-            // 물리 반사 법칙에 따른 반사 광선(R) 계산: R = I - 2(I·N)N
-            const iDotN = I.dot(frontNormal);
-            const R = new THREE.Vector3().copy(I).sub(frontNormal.clone().multiplyScalar(2 * iDotN)).normalize();
-
-            // 광선을 눈의 위치를 지나 뒤쪽까지 길게 연장하여 레이저처럼 표현
-            const eyePt = eyeGroup.position.clone();
-            let rayLength = (eyePt.z + 5 - hitPt.z) / R.z;
-            if (rayLength < 0 || !isFinite(rayLength)) rayLength = 10;
-            const endPt = new THREE.Vector3().copy(hitPt).add(R.clone().multiplyScalar(rayLength));
-            
-            rayGeo.setFromPoints([srcPt, hitPt, endPt]);
-
-            // 스윗스팟 판단을 위해 진짜 반사 광선 데이터 저장
-            window.currentTrueRay = { origin: hitPt, direction: R };
-
-            // 눈동자가 항상 유리판의 빛 반사 지점을 바라보게 설정
-            eyeGroup.lookAt(hitPt);
+            document.getElementById('currentCount').textContent = numParticles;
+            if(!isRunning) render();
         }
 
-        // --- Sweet Spot (최적 시선) 이펙트 처리 ---
-        const banner = document.getElementById('sweetSpotBanner');
-        let isSweetSpot = false;
+        function updatePhysics() {
+            if (px.length === 0) return;
 
-        function checkSweetSpot() {
-            if (!window.currentTrueRay) return false;
+            const cellSpeedSum = new Float32Array(GRID_COLS * GRID_ROWS);
+            const cellCount = new Int32Array(GRID_COLS * GRID_ROWS);
 
-            const R = window.currentTrueRay.direction;
-            const hitPt = window.currentTrueRay.origin;
-            const eyePt = eyeGroup.position;
-
-            // 1. 눈 중심 좌표와 광선 사이의 수직 거리(최단 거리) 계산
-            const EH = new THREE.Vector3().subVectors(eyePt, hitPt);
-            const dist = new THREE.Vector3().crossVectors(EH, R).length();
-            
-            // 2. 광선이 뻗어나가는 방향(앞쪽)에 눈이 있는지 확인
-            const isForward = EH.dot(R) > 0;
-
-            // 3. 카메라 시점이 눈 근처/정면에서 바라보고 있는지 (이펙트 감상용)
-            const cam = camera.position;
-            const camLookingFront = cam.z > 2 && Math.abs(cam.x) < 5.0;
-            
-            // 광선이 눈동자 반경(약 0.4) 안을 정확히 관통하면 true 반환!
-            return isForward && dist < 0.4 && camLookingFront;
-        }
-
-        // --- UI 컨트롤 ---
-        document.getElementById('sliderAngle').addEventListener('input', (e) => {
-            currentAngleDeg = parseFloat(e.target.value);
-            document.getElementById('valAngle').textContent = currentAngleDeg + '°';
-            updatePyramid();
-        });
-
-        document.getElementById('sliderEyeHeight').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            document.getElementById('valEyeHeight').textContent = val;
-            eyeGroup.position.y = val;
-            updatePyramid();
-        });
-
-        document.getElementById('sliderEyeDist').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            document.getElementById('valEyeDist').textContent = val;
-            eyeGroup.position.z = val;
-            updatePyramid();
-        });
-
-        document.getElementById('sliderProj').addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value);
-            document.getElementById('valProj').textContent = val + '%';
-            if(!isSweetSpot) { // 스윗스팟이 아닐때만 수동 밝기 적용
-                allGhostMats.forEach(mat => {
-                    mat.emissiveIntensity = (val / 100) * 1.5;
-                });
+            for (let i = 0; i < numParticles; i++) {
+                const cx = Math.floor(px[i] / cellWidth);
+                const cy = Math.floor(py[i] / cellHeight);
+                if (cx >= 0 && cx < GRID_COLS && cy >= 0 && cy < GRID_ROWS) {
+                    const idx = cy * GRID_COLS + cx;
+                    cellSpeedSum[idx] += Math.sqrt(vx[i]**2 + vy[i]**2);
+                    cellCount[idx]++;
+                }
             }
+
+            for (let i = 0; i < numParticles; i++) {
+                if (isDrawing && (currentTool === 'heat' || currentTool === 'cold')) {
+                    const dx = px[i] - mouseX;
+                    const dy = py[i] - mouseY;
+                    if (dx*dx + dy*dy < brushRadius * brushRadius) {
+                        if (currentTool === 'heat') {
+                            vx[i] *= 1.1; vy[i] *= 1.1;
+                            vx[i] += (Math.random()-0.5) * 0.1; vy[i] += (Math.random()-0.5) * 0.1;
+                        } else {
+                            vx[i] *= 0.85; vy[i] *= 0.85;
+                        }
+                    }
+                }
+
+                const cx = Math.floor(px[i] / cellWidth);
+                const cy = Math.floor(py[i] / cellHeight);
+                const idx = cy * GRID_COLS + cx;
+                if (idx >= 0 && idx < walls.length && cellCount[idx] > 1) {
+                    const avg = cellSpeedSum[idx] / cellCount[idx];
+                    let cur = Math.sqrt(vx[i]**2 + vy[i]**2) || 0.1;
+                    const target = cur * (1 - energyTransferRate) + avg * energyTransferRate;
+                    vx[i] *= (target/cur); vy[i] *= (target/cur);
+                }
+
+                const sSq = vx[i]**2 + vy[i]**2;
+                if (sSq > MAX_SPEED**2) {
+                    const s = Math.sqrt(sSq);
+                    vx[i] = (vx[i]/s)*MAX_SPEED; vy[i] = (vy[i]/s)*MAX_SPEED;
+                }
+
+                let nx = px[i] + vx[i];
+                let ny = py[i] + vy[i];
+
+                if (nx < PARTICLE_RADIUS || nx > canvas.width - PARTICLE_RADIUS) { vx[i] *= -1; nx = px[i]; }
+                if (ny < PARTICLE_RADIUS || ny > canvas.height - PARTICLE_RADIUS) { vy[i] *= -1; ny = py[i]; }
+
+                const ncx = Math.floor(nx / cellWidth);
+                const ncy = Math.floor(ny / cellHeight);
+                if (ncx >= 0 && ncx < GRID_COLS && ncy >= 0 && ncy < GRID_ROWS && walls[ncy * GRID_COLS + ncx]) {
+                    if (Math.floor(px[i] / cellWidth) !== ncx) vx[i] *= -1;
+                    if (Math.floor(py[i] / cellHeight) !== ncy) vy[i] *= -1;
+                    nx = px[i]; ny = py[i];
+                }
+
+                px[i] = nx; py[i] = ny;
+            }
+        }
+
+        function render() {
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 벽 그리기
+            ctx.fillStyle = '#64748b';
+            for (let y = 0; y < GRID_ROWS; y++) {
+                for (let x = 0; x < GRID_COLS; x++) {
+                    if (walls[y * GRID_COLS + x]) {
+                        ctx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
+                    }
+                }
+            }
+
+            // 드로잉 (벽 생성/제거)
+            if (isDrawing && (currentTool === 'wall' || currentTool === 'eraser')) {
+                const gridR = Math.ceil(brushRadius / cellWidth);
+                const mcx = Math.floor(mouseX / cellWidth);
+                const mcy = Math.floor(mouseY / cellHeight);
+                for(let y = mcy-gridR; y <= mcy+gridR; y++) {
+                    for(let x = mcx-gridR; x <= mcx+gridR; x++) {
+                        if(x >= 0 && x < GRID_COLS && y >= 0 && y < GRID_ROWS) {
+                            if((x-mcx)**2 + (y-mcy)**2 <= gridR**2) walls[y*GRID_COLS+x] = (currentTool === 'wall' ? 1 : 0);
+                        }
+                    }
+                }
+            }
+
+            // 입자 그리기 (배열이 유효한지 확인)
+            if (px && px.length > 0) {
+                for (let i = 0; i < numParticles; i++) {
+                    const speed = Math.sqrt(vx[i]**2 + vy[i]**2);
+                    ctx.beginPath();
+                    ctx.arc(px[i], py[i], PARTICLE_RADIUS, 0, Math.PI * 2);
+                    ctx.fillStyle = getColorFromSpeed(speed);
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                    ctx.stroke();
+                }
+            }
+
+            // 가이드 원
+            ctx.beginPath();
+            ctx.arc(mouseX, mouseY, brushRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = currentTool === 'heat' ? '#f43f5e' : (currentTool === 'cold' ? '#3b82f6' : '#ffffff33');
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function loop() {
+            if (isRunning) {
+                updatePhysics();
+                render();
+            }
+            animationId = requestAnimationFrame(loop);
+        }
+
+        function updateMouse(e) {
+            const rect = canvas.getBoundingClientRect();
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            mouseX = (cx - rect.left) * (canvas.width / rect.width);
+            mouseY = (cy - rect.top) * (canvas.height / rect.height);
+        }
+
+        canvas.addEventListener('mousedown', (e) => { isDrawing = true; updateMouse(e); });
+        canvas.addEventListener('mousemove', (e) => { updateMouse(e); if(!isRunning) render(); });
+        window.addEventListener('mouseup', () => isDrawing = false);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); isDrawing = true; updateMouse(e); }, {passive: false});
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); updateMouse(e); if(!isRunning) render(); }, {passive: false});
+
+        const btnPlay = document.getElementById('btnPlayPause');
+        btnPlay.addEventListener('click', () => {
+            isRunning = !isRunning;
+            btnPlay.innerHTML = isRunning ? '<span>⏸ 실험 멈춤</span>' : '<span>▶ 실험 시작</span>';
+            btnPlay.classList.toggle('bg-blue-600', !isRunning);
+            btnPlay.classList.toggle('bg-amber-500', isRunning);
         });
 
-        const charBtns = [document.getElementById('btnChar0'), document.getElementById('btnChar1'), document.getElementById('btnChar2')];
-        charBtns.forEach((btn, index) => {
+        document.getElementById('btnResetParticles').addEventListener('click', () => setupParticleArrays(numParticles));
+        document.getElementById('btnClearWalls').addEventListener('click', () => { walls.fill(0); render(); });
+
+        document.getElementById('brushSlider').addEventListener('input', (e) => {
+            brushRadius = parseInt(e.target.value);
+            document.getElementById('brushSizeVal').textContent = brushRadius;
+            if(!isRunning) render();
+        });
+
+        document.getElementById('particleSlider').addEventListener('change', (e) => {
+            setupParticleArrays(parseInt(e.target.value));
+        });
+        document.getElementById('particleSlider').addEventListener('input', (e) => {
+            document.getElementById('particleCountVal').textContent = e.target.value;
+        });
+
+        document.querySelectorAll('.tool-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                charBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                
-                characterGroups.forEach(grp => {
-                    grp.sources.forEach(s => s.visible = false);
-                    grp.ghosts.forEach(g => g.visible = false);
+                document.querySelectorAll('.tool-btn').forEach(b => {
+                    b.classList.remove('active-tool', 'border-rose-400', 'border-blue-400', 'border-slate-400', 'ring-2');
+                    b.classList.add('border-transparent');
                 });
-                
-                activeCharIndex = index;
-                characterGroups[activeCharIndex].sources.forEach(s => s.visible = true);
-                characterGroups[activeCharIndex].ghosts.forEach(g => g.visible = true);
-                updatePyramid();
+                currentTool = btn.dataset.tool;
+                btn.classList.add('active-tool');
+                const colorClass = currentTool === 'heat' ? 'border-rose-400' : (currentTool === 'cold' ? 'border-blue-400' : 'border-slate-400');
+                btn.classList.remove('border-transparent');
+                btn.classList.add(colorClass, 'ring-2');
             });
         });
 
-        // 카메라 시점 버튼 (관찰자 정면 클릭 시 카메라를 눈 모델 바로 뒤로 이동)
-        document.getElementById('btnViewFront').addEventListener('click', () => { camera.position.set(0, eyeGroup.position.y + 0.5, eyeGroup.position.z + 2.5); controls.target.set(0, eyeGroup.position.y, 0); });
-        document.getElementById('btnViewTop').addEventListener('click', () => { camera.position.set(0, 10, 0); controls.target.set(0,-2,0); });
-        document.getElementById('btnViewSide').addEventListener('click', () => { camera.position.set(7, 2, 7); controls.target.set(0,0,0); });
-
-
-        // --- 렌더링 루프 ---
-        const clock = new THREE.Clock();
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const time = clock.getElapsedTime();
-
-            // 입체를 안움직이게 하기 위해 원본 객체 회전 애니메이션 코드를 삭제했습니다.
-            
-            updatePyramid(); // 회전 상태 등 지속적인 업데이트
-
-            // 최적 시선 (Sweet Spot) 체크 및 이펙트 발동
-            const nowSweet = checkSweetSpot();
-            if(nowSweet !== isSweetSpot) {
-                isSweetSpot = nowSweet;
-                if(isSweetSpot) {
-                    banner.classList.add('show');
-                    allGhostMats.forEach(mat => { mat.emissiveIntensity = 4.0; }); // 엄청 밝아짐
-                    rayMat.color.setHex(0xff33aa); // 광선 색상 변경
-                } else {
-                    banner.classList.remove('show');
-                    const val = parseFloat(document.getElementById('sliderProj').value) / 100 * 1.5;
-                    allGhostMats.forEach(mat => { mat.emissiveIntensity = val; });
-                    rayMat.color.setHex(0xffff00);
-                }
-            }
-
-            // 카메라 위치 추적 코드를 삭제하고, 눈(eyeGroup)을 기준으로 빛 경로를 그리도록 변경됨
-
-            controls.update();
-            renderer.render(scene, camera);
-        }
-
-        updatePyramid();
-        animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        window.onload = () => {
+            resizeCanvas();
+            setupParticleArrays(150);
+            requestAnimationFrame(loop);
+            setTimeout(() => { if(!isRunning) btnPlay.click(); }, 100);
+        };
+        window.addEventListener('resize', resizeCanvas);
     </script>
 </body>
 </html>
